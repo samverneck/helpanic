@@ -1,69 +1,21 @@
-FROM     ubuntu:14.04.4
+FROM samtstern/android-sdk
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    ANDROID_HOME=/opt/android-sdk-linux \
-    NODE_VERSION=7.4.0 \
-    SUPERACAO=/superacao-app
+# Download and Unzip Android Studio
+ENV ANDROID_STUDIO_URL https://dl.google.com/dl/android/studio/ide-zips/1.0.1/android-studio-ide-135.1641136-linux.zip
+RUN curl -L ${ANDROID_STUDIO_URL} -o /tmp/android-studio-ide.zip && unzip /tmp/android-studio-ide.zip -d /usr/local && rm /tmp/android-studio-ide.zip
+ENV ANDROID_STUDIO_HOME /usr/local/android-studio
 
-# Install basics
-RUN apt-get update &&  \
-    apt-get install -y git wget curl unzip ruby && \
+# Install extra Android SDK
+ENV ANDROID_SDK_EXTRA_COMPONENTS extra-google-google_play_services,extra-google-m2repository,extra-android-m2repository,source-21,addon-google_apis-google-21,sys-img-x86-addon-google_apis-google-21
+RUN echo y | ${ANDROID_HOME}/tools/android update sdk --no-ui --all --filter "${ANDROID_SDK_EXTRA_COMPONENTS}"
 
-    curl --retry 3 -SLO "http://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" && \
-    tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 && \
-    rm "node-v$NODE_VERSION-linux-x64.tar.gz" && \
-    npm install -g npm && \
-    npm install -g cordova && \
-    npm install -g ionic@3.0.0 && \
-    npm cache clear && \
+# Create studio user and home volume
+RUN useradd -u 1000 -d /home/studio -s /sbin/nologin -m studio
+VOLUME /home/studio
 
-#ANDROID
+# Path
+ENV PATH $PATH:${ANDROID_STUDIO_HOME}/bin
 
-#JAVA
-
-# install python-software-properties (so you can do add-apt-repository)
-    apt-get update && apt-get install -y -q python-software-properties software-properties-common  && \
-
-    add-apt-repository ppa:webupd8team/java -y && \
-    echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections && \
-    apt-get update && apt-get -y install oracle-java8-installer && \
-
-
-#ANDROID STUFF
-    echo ANDROID_HOME="${ANDROID_HOME}" >> /etc/environment && \
-    dpkg --add-architecture i386 && \
-    apt-get update && \
-    apt-get install -y --force-yes expect ant wget libc6-i386 lib32stdc++6 lib32gcc1 lib32ncurses5 lib32z1 qemu-kvm kmod && \
-    apt-get clean && \
-    apt-get autoclean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-
-# Install Android SDK
-    cd /opt && \
-    wget --output-document=android-sdk.tgz --quiet http://dl.google.com/android/android-sdk_r24.4.1-linux.tgz && \
-    tar xzf android-sdk.tgz && \
-    rm -f android-sdk.tgz && \
-    chown -R root. /opt
-
-#Copy all files and folders of Superacao
-#COPY . ${SUPERACAO}
-
-# Setup environment
-
-ENV PATH ${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/platform-tools:/opt/tools
-
-# Install sdk elements
-# COPY tools /opt/tools
-
-# RUN ["/opt/tools/android-accept-licenses.sh", "android update sdk --all --no-ui --filter platform-tools,tools,build-tools-23.0.2,android-23,extra-android-support,extra-android-m2repository,extra-google-m2repository"]
-# RUN unzip ${ANDROID_HOME}/temp/*.zip -d ${ANDROID_HOME}
-
-# Install app
-#WORKDIR ${SUPERACAO}
-#RUN cd ${SUPERACAO}
-#RUN npm install
-
-EXPOSE 8100 35729
-CMD ionic serve
-Contact GitHub API Training Shop Blog About
-©
+# Set Android Studio entrypoint
+USER studio
+ENTRYPOINT studio.sh
